@@ -1,0 +1,43 @@
+# .github/workflows/deploy.yml
+
+name: Sync master → gh-pages
+
+on:
+  push:
+    branches:
+      - master # 监听 master 的一切 push
+
+# 给默认的 GITHUB_TOKEN 写权限，才能向 gh‑pages 分支 push
+#（GitHub 自 2023 起默认仅有读取权限）
+permissions:
+  contents: write # :contentReference[oaicite:0]{index=0}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) 取到完整仓库历史，后面才能重新提交
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2) 把除 .git/.github 之外的所有文件复制到临时目录 public
+      - name: Copy files
+        run: |
+          mkdir public
+          rsync -av --delete \
+            --exclude='.git*' \
+            --exclude='.github' \
+            ./ public/
+
+      # 3) 推送到 gh-pages 分支
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v3 # 当前最常用的 Pages 部署 Action :contentReference[oaicite:1]{index=1}
+        with:
+          publish_dir: ./public # 刚才准备好的目录
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # 如需保留 gh‑pages 历史，可删掉下面这一行
+          force_orphan: true # 始终创建孤立 commit（gh-pages 无历史包袱）
